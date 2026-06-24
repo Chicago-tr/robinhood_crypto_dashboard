@@ -19,6 +19,7 @@ A full-stack dashboard built for Robinhood's crypto trading platform. Tracks por
 - Frontend displays everything in a dashboard
 
 ## Project Structure
+```bash
 robinhood_crypto_dashboard/
 ├── backend/
 │   ├── app.py
@@ -33,4 +34,4 @@ robinhood_crypto_dashboard/
 ├── position_snapshots/
 ├── .env.example
 └── README.md
-
+```
