@@ -189,11 +189,11 @@ async function saveSnapshot() {
         const data = await response.json();
         
         if (data.success) {
-            alert(`✅ Snapshot saved!\n\nPath: ${data.snapshot_path}\nTotal Value: ${formatCurrency(data.total_value)}\nTime: ${new Date(data.timestamp).toLocaleString()}`);
+            alert(`Snapshot saved!\n\nPath: ${data.snapshot_path}\nTotal Value: ${formatCurrency(data.total_value)}\nTime: ${new Date(data.timestamp).toLocaleString()}`);
         }
     } catch (error) {
         console.error('Failed to save snapshot:', error);
-        alert('❌ Failed to save snapshot');
+        alert('Failed to save snapshot');
     }
 }
 
@@ -206,7 +206,7 @@ async function reconcilePositions() {
         displayReconciliationResult(data);
     } catch (error) {
         console.error('Failed to reconcile positions:', error);
-        alert('❌ Failed to reconcile positions');
+        alert('Failed to reconcile positions');
     }
 }
 
@@ -217,11 +217,11 @@ async function generateDailyReport() {
         const data = await response.json();
         
         if (data.success) {
-            alert(`✅ Daily position report generated!\n\nPath: ${data.report_path}\nTime: ${new Date(data.timestamp).toLocaleString()}`);
+            alert(`Daily position report generated!\n\nPath: ${data.report_path}\nTime: ${new Date(data.timestamp).toLocaleString()}`);
         }
     } catch (error) {
         console.error('Failed to generate report:', error);
-        alert('❌ Failed to generate daily report');
+        alert('Failed to generate daily report');
     }
 }
 
@@ -233,7 +233,7 @@ function displayReconciliationResult(data) {
     if (!data.reconciled) {
         resultDiv.innerHTML = `
             <div class="reconciliation-warning">
-                <h4>⚠️ Reconciliation Not Available</h4>
+                <h4>Reconciliation Not Available</h4>
                 <p>${data.message}</p>
                 <p><strong>Action:</strong> Click "Save Daily Position Snapshot" first to create a baseline.</p>
             </div>
@@ -248,7 +248,7 @@ function displayReconciliationResult(data) {
         severityClass = hasHighSeverity ? 'reconciliation-critical' : 'reconciliation-warning';
     }
     
-    const statusTitle = data.all_match ? '✅ RECONCILIATION PASSED' : '⚠️ RECONCILIATION NOTICE';
+    const statusTitle = data.all_match ? 'RECONCILIATION PASSED' : 'RECONCILIATION NOTICE';
     
     let discrepanciesHtml = '';
     if (data.discrepancies.length > 0) {
