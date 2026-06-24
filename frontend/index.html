@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robinhood Crypto Trading Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Crypto Trading Dashboard</h1>
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Portfolio Summary -->
+        <section class="card portfolio-summary">
+            <h2>Portfolio Overview</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="label">Total Value</span>
+                    <span class="value" id="totalValue">$0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">PnL</span>
+                    <span class="value" id="pnl">$0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">PnL %</span>
+                    <span class="value" id="pnlPercent">0.00%</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Drawdown</span>
+                    <span class="value" id="drawdown">0.00%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Risk Controls -->
+        <section class="card risk-controls">
+            <h2>Risk Management</h2>
+            <div class="risk-setting">
+                <label for="maxDrawdown">Max Drawdown Limit:</label>
+                <input type="number" id="maxDrawdown" step="0.1" min="0.1" max="50" value="5.0">
+                <span>%</span>
+                <button onclick="updateRiskSettings()" class="btn btn-primary">Update</button>
+            </div>
+            <div class="risk-status" id="riskStatus">
+                <div class="status-item">
+                    <span>Peak Value:</span>
+                    <span id="peakValue">$0.00</span>
+                </div>
+                <div class="status-item">
+                    <span>Liquidation Status:</span>
+                    <span id="liquidationStatus" class="safe">Safe</span>
+                </div>
+            </div>
+            <button onclick="resetPeak()" class="btn btn-secondary">Reset Peak Value</button>
+        </section>
+
+        <!-- Holdings Table -->
+        <section class="card holdings">
+            <h2>Crypto Holdings</h2>
+            <table id="holdingsTable">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Name</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody id="holdingsBody">
+                    <tr><td colspan="5">Loading...</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Position Reconciliation & Daily Reporting -->
+        <section class="card reconciliation">
+            <h2>Position Reconciliation & Daily Reporting</h2>
+            
+            <div class="reconciliation-actions">
+                <button onclick="saveSnapshot()" class="btn btn-primary">
+                    💾 Save Daily Position Snapshot
+                </button>
+                <button onclick="reconcilePositions()" class="btn btn-primary">
+                    🔍 Reconcile Against Previous Day
+                </button>
+                <button onclick="generateDailyReport()" class="btn btn-secondary">
+                    📄 Download CSV Position Report
+                </button>
+            </div>
+            
+            <div id="reconciliationResult" class="reconciliation-result" style="display: none;">
+                <!-- Results populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Order History -->
+        <section class="card orders">
+            <h2>Recent Orders</h2>
+            <div id="orderHistory">
+                <p>Loading orders...</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
