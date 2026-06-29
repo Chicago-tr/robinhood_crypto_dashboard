@@ -36,4 +36,3 @@ robinhood_crypto_dashboard/
 └── README.md
 ```
 
-Screenshots coming soon...
