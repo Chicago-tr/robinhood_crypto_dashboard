@@ -1,6 +1,8 @@
 # Robinhood Crypto Trading Dashboard
 
-A full-stack dashboard built for Robinhood's crypto trading platform. Tracks portfolio value, PnL, and drawdown in real time. Can automatically liquidate crypto positions when a max-loss threshold is reached. Generates daily positions reports and reconciles positions against prior snapshots and flags missing positions/discrepancies as well.
+A full-stack dashboard built for Robinhood's crypto trading platform. Tracks portfolio value, PnL, and drawdown in real time. Can automatically liquidate crypto positions when a max-loss threshold is reached. Generates daily position reports and reconciles positions against prior snapshots and flags missing positions/discrepancies as well.
+
+Docker and docker-compose support are included for easy containerized deployment.
 
 ## Features
 - Live portfolio tracking for crypto holdings and buying power (Can't access account balance using Robinhood's Api currently)
@@ -83,6 +85,33 @@ python run.py
 ```
 
 Then open the dashboard in a browser at:
+
+```text
+http://localhost:5000
+```
+
+## Docker
+Or if you want to try it using Docker:
+
+Build the image from the repo root:
+
+```bash
+docker build -t robinhood-crypto-dashboard .
+```
+
+Run the container with your environment file mounted:
+
+```bash
+docker run --rm -p 5000:5000 --env-file backend/.env robinhood-crypto-dashboard
+```
+
+A minimal `docker-compose.yml` for convenience:
+
+```bash
+docker compose up --build
+```
+
+Then open:
 
 ```text
 http://localhost:5000

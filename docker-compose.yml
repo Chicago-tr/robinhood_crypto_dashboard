@@ -1,0 +1,14 @@
+version: '3.9'
+
+services:
+  dashboard:
+    build: .
+    ports:
+      - '5000:5000'
+    env_file:
+      - backend/.env
+    volumes:
+      - ./frontend:/app/frontend:ro
+      - ./backend:/app/backend:ro
+      - ./run.py:/app/run.py:ro
+    restart: unless-stopped
