@@ -76,13 +76,13 @@ PORT=5000
 ```
 
 ## Running the app
-From the project root, start the full dashboard with a single command:
+From the project root, start the full dashboard with:
 
 ```bash
 python run.py
 ```
 
-Then open the dashboard in your browser at:
+Then open the dashboard in a browser at:
 
 ```text
 http://localhost:5000
