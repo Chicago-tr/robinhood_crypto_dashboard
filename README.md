@@ -105,7 +105,7 @@ Run the container with your environment file mounted:
 docker run --rm -p 5000:5000 --env-file backend/.env robinhood-crypto-dashboard
 ```
 
-A minimal `docker-compose.yml` for convenience:
+Can use the `docker-compose.yml` for convenience:
 
 ```bash
 docker compose up --build
