@@ -2,7 +2,7 @@
 
 A full-stack dashboard built for Robinhood's crypto trading platform. Tracks portfolio value, PnL, and drawdown in real time. Can automatically liquidate crypto positions when a max-loss threshold is reached. Generates daily position reports and reconciles positions against prior snapshots and flags missing positions/discrepancies as well.
 
-Docker and docker-compose support are included for easy containerized deployment.
+Docker support included as well.
 
 ## Features
 - Live portfolio tracking for crypto holdings and buying power (Can't access account balance using Robinhood's Api currently)
