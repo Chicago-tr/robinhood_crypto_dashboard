@@ -3,19 +3,19 @@ const API_BASE = 'http://localhost:5000/api';
 let portfolioChart = null;
 let priceHistory = [];
 
-// Initialize dashboard
+// Initialize the dashboard
 async function init() {
     await checkHealth();
     await loadPortfolio();
     await loadRiskStatus();
     await loadOrders();
     
-    // Start auto-refresh
+    // Start auto-refresh, 30s currently can be a lot faster
     setInterval(loadPortfolio, 30000);
     setInterval(loadRiskStatus, 30000);
 }
 
-// Check API health
+// Testing API
 async function checkHealth() {
     try {
         const response = await fetch(`${API_BASE}/health`);
@@ -37,21 +37,68 @@ async function checkHealth() {
     }
 }
 
-// Load portfolio data
+function updateLastUpdated() {
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent = `Last updated: ${now.toLocaleString()}`;
+}
+
+let notificationTimeout = null;
+function showNotification(message, type = 'success', duration = 4500) {
+    const notification = document.getElementById('notification');
+    if (!notification) return;
+
+    notification.textContent = message;
+    notification.className = `notification ${type}`;
+    notification.style.display = 'block';
+
+    if (notificationTimeout) {
+        clearTimeout(notificationTimeout);
+    }
+
+    notificationTimeout = setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            notification.style.display = 'none';
+            notification.classList.remove('hide');
+        }, 200);
+    }, duration);
+}
+
+function displaySectionError(elementId, message) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.innerHTML = `<p class="error-text">${message}</p>`;
+    }
+}
+
+
 async function loadPortfolio() {
     try {
         const response = await fetch(`${API_BASE}/portfolio`);
         const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        console.log(">>> Portfolio data from API:", data);
+        console.log(">>> Holdings:", data.holdings);
         
         updatePortfolioSummary(data);
         updateHoldingsTable(data.holdings);
         updateChart(data.total_value);
+        updateLastUpdated();
     } catch (error) {
         console.error('Failed to load portfolio:', error);
+        displaySectionError('holdingsBody', 'Unable to load portfolio data at this time.');
+        document.getElementById('totalValue').textContent = '--';
+        document.getElementById('pnl').textContent = '--';
+        document.getElementById('pnlPercent').textContent = '--';
+        document.getElementById('peakValue').textContent = '--';
     }
 }
 
-// Update portfolio summary
+
 function updatePortfolioSummary(data) {
     document.getElementById('totalValue').textContent = 
         formatCurrency(data.total_value);
@@ -68,7 +115,7 @@ function updatePortfolioSummary(data) {
         formatCurrency(data.peak_value);
 }
 
-// Load risk status
+// Check portfolio against risk thresholds
 async function loadRiskStatus() {
     try {
         const response = await fetch(`${API_BASE}/risk`);
@@ -78,22 +125,66 @@ async function loadRiskStatus() {
             formatPercent(data.drawdown_percent);
         
         const liquidationStatus = document.getElementById('liquidationStatus');
+        const riskTrend = document.getElementById('riskTrend');
         if (data.liquidation_triggered) {
             liquidationStatus.textContent = 'LIQUIDATING';
-            liquidationStatus.className = 'critical';
-        } else if (data.drawdown_percent > data.max_drawdown_allowed * 0.8) {
+            liquidationStatus.className = 'status-chip critical';
+            riskTrend.textContent = 'Deteriorating';
+            riskTrend.className = 'status-chip deteriorating';
+        } else if (data.drawdown_percent > data.max_drawdown_allowed * 0.75) {
             liquidationStatus.textContent = 'Warning';
-            liquidationStatus.className = 'warning';
+            liquidationStatus.className = 'status-chip warning';
+            riskTrend.textContent = 'Deteriorating';
+            riskTrend.className = 'status-chip deteriorating';
+        } else if (data.drawdown_percent > data.max_drawdown_allowed * 0.35) {
+            liquidationStatus.textContent = 'Warning';
+            liquidationStatus.className = 'status-chip warning';
+            riskTrend.textContent = 'Caution';
+            riskTrend.className = 'status-chip warning';
         } else {
             liquidationStatus.textContent = 'Safe';
-            liquidationStatus.className = 'safe';
+            liquidationStatus.className = 'status-chip safe';
+            riskTrend.textContent = 'Stable';
+            riskTrend.className = 'status-chip stable';
         }
     } catch (error) {
         console.error('Failed to load risk status:', error);
     }
 }
 
-// Update holdings table
+// Map of Symbols to their coin names
+const assetDisplayNames = {
+    RAY: 'Raydium',
+    BTC: 'Bitcoin',
+    ETH: 'Ethereum',
+    SOL: 'Solana',
+    ADA: 'Cardano',
+    DOGE: 'Dogecoin',
+    DOT: 'Polkadot',
+    LINK: 'Chainlink',
+    MATIC: 'Polygon',
+    USDC: 'USD Coin',
+    USDT: 'Tether',
+    BNB: 'BNB',
+    LTC: 'Litecoin',
+    XRP: 'XRP',
+    AVAX: 'Avalanche',
+    SHIB: 'Shiba Inu',
+    AAVE: 'Aave',
+    UNI: 'Uniswap',
+    SOL: 'Solana',
+    CRV: 'Curve'
+};
+
+function getDisplayName(holding) {
+    if (holding.name && holding.name !== holding.symbol) {
+        return holding.name;
+    }
+
+    return assetDisplayNames[holding.symbol] || holding.symbol;
+}
+
+
 function updateHoldingsTable(holdings) {
     const tbody = document.getElementById('holdingsBody');
     
@@ -105,7 +196,7 @@ function updateHoldingsTable(holdings) {
     tbody.innerHTML = holdings.map(h => `
         <tr>
             <td><strong>${h.symbol}</strong></td>
-            <td>${h.name}</td>
+            <td>${getDisplayName(h)}</td>
             <td>${h.quantity.toFixed(6)}</td>
             <td>${formatCurrency(h.price)}</td>
             <td>${formatCurrency(h.value)}</td>
@@ -128,12 +219,17 @@ async function loadOrders() {
         }
         
         orderHistory.innerHTML = orders.slice(0, 20).map(order => {
-            const statusClass = order.status === 'filled' ? 'success' : '';
+            const filledQty = parseFloat(order.filled_asset_quantity || (order.executions?.[0]?.quantity ?? 0)) || 0;
+            const price = parseFloat(order.average_price || order.executions?.[0]?.effective_price || 0) || 0;
+            const symbol = order.symbol ? order.symbol.replace('-USD', '') : 'UNKNOWN';
+            const side = order.side || 'unknown';
+            const statusClass = order.state === 'filled' ? 'success' : '';
+            const stateLabel = order.state || order.status || 'unknown';
             return `
                 <div class="order-item ${statusClass}">
-                    <strong>${order.symbol}</strong> - ${order.side} 
-                    ${order.quantity} @ ${formatCurrency(order.price)}
-                    <br><small>${order.status} - ${new Date(order.created_at).toLocaleString()}</small>
+                    <strong>${symbol}</strong> - ${side} 
+                    ${filledQty.toFixed(6)} @ ${formatCurrency(price)}
+                    <br><small>${stateLabel} - ${new Date(order.created_at).toLocaleString()}</small>
                 </div>
             `;
         }).join('');
@@ -142,7 +238,7 @@ async function loadOrders() {
     }
 }
 
-// Update risk settings
+// Update risk limits
 async function updateRiskSettings() {
     const maxDrawdown = document.getElementById('maxDrawdown').value;
     
@@ -155,28 +251,28 @@ async function updateRiskSettings() {
         
         const data = await response.json();
         if (data.success) {
-            alert(`Max drawdown updated to ${maxDrawdown}%`);
+            showNotification(`Max drawdown updated to ${maxDrawdown}%`, 'success');
             loadRiskStatus();
         }
     } catch (error) {
         console.error('Failed to update risk settings:', error);
-        alert('Failed to update risk settings');
+        showNotification('Failed to update risk settings', 'error');
     }
 }
 
-// Reset peak value
+
 async function resetPeak() {
     try {
         const response = await fetch(`${API_BASE}/reset-peak`);
         const data = await response.json();
         
         if (data.success) {
-            alert('Peak value reset');
+            showNotification('Peak value reset', 'success');
             loadRiskStatus();
         }
     } catch (error) {
         console.error('Failed to reset peak:', error);
-        alert('Failed to reset peak value');
+        showNotification('Failed to reset peak value', 'error');
     }
 }
 
@@ -189,11 +285,11 @@ async function saveSnapshot() {
         const data = await response.json();
         
         if (data.success) {
-            alert(`Snapshot saved!\n\nPath: ${data.snapshot_path}\nTotal Value: ${formatCurrency(data.total_value)}\nTime: ${new Date(data.timestamp).toLocaleString()}`);
+            showNotification(`Snapshot saved successfully`, 'success');
         }
     } catch (error) {
         console.error('Failed to save snapshot:', error);
-        alert('Failed to save snapshot');
+        showNotification('Failed to save snapshot', 'error');
     }
 }
 
@@ -204,28 +300,33 @@ async function reconcilePositions() {
         const data = await response.json();
         
         displayReconciliationResult(data);
+        if (data.reconciled) {
+            showNotification('Reconciliation completed', 'success');
+        } else {
+            showNotification(data.message || 'Reconciliation completed with discrepancies', 'error');
+        }
     } catch (error) {
         console.error('Failed to reconcile positions:', error);
-        alert('Failed to reconcile positions');
+        showNotification('Failed to reconcile positions', 'error');
     }
 }
 
-// Generate daily CSV report
+
 async function generateDailyReport() {
     try {
         const response = await fetch(`${API_BASE}/daily-report`);
         const data = await response.json();
         
         if (data.success) {
-            alert(`Daily position report generated!\n\nPath: ${data.report_path}\nTime: ${new Date(data.timestamp).toLocaleString()}`);
+            showNotification('Daily report generated successfully', 'success');
         }
     } catch (error) {
         console.error('Failed to generate report:', error);
-        alert('Failed to generate daily report');
+        showNotification('Failed to generate daily report', 'error');
     }
 }
 
-// Display reconciliation results
+
 function displayReconciliationResult(data) {
     const resultDiv = document.getElementById('reconciliationResult');
     resultDiv.style.display = 'block';
@@ -241,7 +342,7 @@ function displayReconciliationResult(data) {
         return;
     }
     
-    // Determine severity class
+    // Severity button stuff below
     let severityClass = 'reconciliation-success';
     if (data.discrepancy_count > 0) {
         const hasHighSeverity = data.discrepancies.some(d => d.severity === 'high');
@@ -307,40 +408,63 @@ function updateChart(currentValue) {
         priceHistory = priceHistory.slice(-100);
     }
     
+    const canvas = document.getElementById('portfolioChart');
+    if (!canvas) {
+        console.error('Portfolio chart canvas not found');
+        return;
+    }
+
     if (!portfolioChart) {
-        const canvas = document.createElement('canvas');
-        canvas.id = 'portfolioChart';
-        canvas.style.height = '200px';
-        canvas.style.marginTop = '20px';
-        
-        const chartContainer = document.querySelector('.portfolio-summary');
-        chartContainer.appendChild(canvas);
-        
         portfolioChart = new Chart(canvas, {
             type: 'line',
             data: {
                 datasets: [{
                     label: 'Portfolio Value',
                     data: priceHistory,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderColor: 'rgba(102, 126, 234, 0.82)',
+                    backgroundColor: 'rgba(102, 126, 234, 0.18)',
+                    pointRadius: 0,
+                    borderWidth: 2.5,
                     fill: true,
-                    tension: 0.4
+                    tension: 0.38,
+                    cubicInterpolationMode: 'monotone'
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 14,
+                        bottom: 14,
+                        left: 8,
+                        right: 8
+                    }
+                },
                 plugins: {
                     legend: { display: false }
                 },
                 scales: {
                     x: {
                         type: 'linear',
-                        display: false
+                        display: false,
+                        grid: {
+                            drawBorder: false,
+                            color: 'rgba(255, 255, 255, 0.06)'
+                        },
+                        ticks: {
+                            color: 'rgba(15, 23, 42, 0.55)'
+                        }
                     },
                     y: {
-                        beginAtZero: false
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(15, 23, 42, 0.08)',
+                            borderDash: [4, 6]
+                        },
+                        ticks: {
+                            color: 'rgba(15, 23, 42, 0.65)'
+                        }
                     }
                 }
             }
@@ -351,7 +475,7 @@ function updateChart(currentValue) {
     }
 }
 
-// Helper functions
+// A couple helper functions
 function formatCurrency(value) {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',

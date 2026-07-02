@@ -26,13 +26,74 @@ robinhood_crypto_dashboard/
 │   ├── config.py
 │   ├── robinhood_client.py
 │   ├── risk_engine.py
-│   └── reconciliation.py
+│   ├── reconciliation.py
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── __init__.py
 ├── frontend/
 │   ├── index.html
 │   ├── app.js
 │   └── styles.css
 ├── position_snapshots/
-├── .env.example
+├── run.py
 └── README.md
 ```
+
+## Setup
+1. Clone the repository and change into the project directory (if you haven't already):
+
+```bash
+git clone https://github.com/<username>/robinhood_crypto_dashboard.git
+cd robinhood_crypto_dashboard
+```
+
+2. Create and activate a virtual environment:
+(So project dependencies don't conflict with other Python projects on your machine)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+3. Install backend dependencies:
+
+```bash
+pip install -r backend/requirements.txt
+```
+
+3. Copy the example environment file and update the values:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+4. Set your Robinhood API credentials in `backend/.env`:
+
+```bash
+ROBINHOOD_API_KEY=your_api_key
+ROBINHOOD_PRIVATE_KEY=your_private_key
+MAX_DRAWDOWN_PERCENT=5.0
+PORT=5000
+```
+
+## Running the app
+From the project root, start the full dashboard with a single command:
+
+```bash
+python run.py
+```
+
+Then open the dashboard in your browser at:
+
+```text
+http://localhost:5000
+```
+
+## Notes
+- The backend serves the frontend statically and exposes `/api/*` endpoints for the dashboard.
+- `position_snapshots/` is used to store daily snapshots and generated reports.
+- PnL is calculated from actual cost basis and current crypto market prices, so new purchases do not inflate profit calculations.
+- The dashboard uses a lightweight chart view, risk monitoring, reconciliation, and order history display.
+
+
 

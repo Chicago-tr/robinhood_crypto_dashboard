@@ -1,4 +1,4 @@
 __pycache__
 .env
-
-
+position_snapshots/
+.DS_Store

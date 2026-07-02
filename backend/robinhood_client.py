@@ -3,7 +3,8 @@ import base64
 import time
 import uuid
 import nacl.signing
-from config import Config
+from backend.config import Config
+
 
 class RobinhoodCryptoApi:
     """
@@ -11,10 +12,17 @@ class RobinhoodCryptoApi:
     """
     
     def __init__(self):
-        self.session = requests.Session()
-        self.api_key = Config.ROBINHOOD_API_KEY
-        self.private_key_base64 = Config.ROBINHOOD_PRIVATE_KEY
-        self._setup_session()
+        print("Creating RobinhoodCryptoClient...")
+        try:
+            self.session = requests.Session()
+            self.api_key = Config.ROBINHOOD_API_KEY
+            self.private_key_base64 = Config.ROBINHOOD_PRIVATE_KEY
+            
+            self._setup_session()
+            print("RobinhoodCryptoClient created successfully.")
+        except Exception as e:
+            print(f"Error in RobinhoodCryptoClient.__init__: {e}")
+            raise
     
     def _setup_session(self):
         """Sets session headers, internal use"""
@@ -23,7 +31,7 @@ class RobinhoodCryptoApi:
             "Content-Type": "application/json"
         })
     
-    def _generate_signature(self, path: str, method: str, body: dict | None = None):
+    def _generate_signature(self, path: str, method: str, body: str = ""):
         """
         Creates the API signatures needed for requests
         Check Robinhood API documentation for details on the process
@@ -50,7 +58,7 @@ class RobinhoodCryptoApi:
         
         return cur_timestamp, signature
     
-    def _make_request(self, path: str, method: str = "GET", body: dict | None = None):
+    def _make_request(self, path: str, method: str = "GET", body: str = ""):
         """ 
         Args:
             path: API path endpoint
@@ -60,8 +68,6 @@ class RobinhoodCryptoApi:
         Returns:
             Response json data as dict
         """
-        if body is None:
-            body = {}
 
         # Get the signature
         cur_timestamp, signature = self._generate_signature(path, method, body)
@@ -103,7 +109,6 @@ class RobinhoodCryptoApi:
         """
         path = "/api/v1/crypto/trading/holdings/"
         data = self._make_request(path, "GET")
-
         return data.get("results", [])
     
     def get_crypto_price(self, symbol: str):
@@ -225,12 +230,119 @@ class RobinhoodCryptoApi:
         # Crypto value
         crypto_value = 0
         for holding in holdings:
-            symbol = holding.get("symbol", "").replace("-USD", "")
-            quantity = float(holding.get("quantity", 0))
+            symbol = holding.get("symbol") or holding.get("asset_code", "")
+            if symbol.endswith("-USD"):
+                symbol = symbol.replace("-USD", "")
+            quantity = float(
+                holding.get("quantity") or
+                holding.get("total_quantity") or
+                holding.get("filled_asset_quantity") or
+                0
+            )
             price = prices.get(symbol, 0)
             crypto_value += quantity * price
         
         return cash + crypto_value
+
+    def get_portfolio(self) -> dict:
+        """
+        Return a normalized portfolio snapshot for holdings, cash, and pricing.
+        """
+        account = self.get_crypto_account()
+        holdings = self.get_crypto_holdings()
+
+        symbols = []
+        for holding in holdings:
+            symbol = holding.get("asset_code") or holding.get("symbol") or ""
+            if symbol.endswith("-USD"):
+                symbol = symbol.replace("-USD", "")
+            if symbol:
+                symbols.append(symbol)
+
+        prices = self.get_mult_crypto_prices(symbols if symbols else None)
+        portfolio_value = self.get_portfolio_value()
+        cash_balance = float(account.get("balance", 0))
+
+        holdings_with_value = []
+        for holding in holdings:
+            symbol = holding.get("asset_code") or holding.get("symbol") or ""
+            if symbol.endswith("-USD"):
+                symbol = symbol.replace("-USD", "")
+
+            quantity = float(
+                holding.get("total_quantity") or
+                holding.get("quantity") or
+                holding.get("filled_asset_quantity") or
+                0
+            )
+            price = prices.get(symbol, 0)
+            value = quantity * price
+
+            holdings_with_value.append({
+                "symbol": symbol,
+                "quantity": quantity,
+                "price": price,
+                "value": value,
+                "name": holding.get("asset_code", symbol)
+            })
+
+        return {
+            "total_value": portfolio_value,
+            "cash_balance": cash_balance,
+            "crypto_value": portfolio_value - cash_balance,
+            "holdings": holdings_with_value,
+            "prices": prices
+        }
+
+    def get_crypto_cost_basis(self) -> float:
+        """
+        Estimate the total cost basis for current crypto holdings using order history.
+        """
+        orders = self.get_order_history()
+        basis_by_symbol = {}
+        qty_by_symbol = {}
+
+        for order in sorted(orders, key=lambda o: o.get('created_at', '')):
+            if order.get('state') != 'filled':
+                continue
+
+            symbol = order.get('symbol', '')
+            if symbol.endswith('-USD'):
+                symbol = symbol.replace('-USD', '')
+            if not symbol:
+                continue
+
+            try:
+                quantity = float(order.get('filled_asset_quantity') or 0)
+            except (TypeError, ValueError):
+                quantity = 0
+
+            try:
+                price = float(order.get('average_price') or 0)
+            except (TypeError, ValueError):
+                price = 0
+
+            if quantity <= 0 or price <= 0:
+                continue
+
+            basis_by_symbol.setdefault(symbol, 0.0)
+            qty_by_symbol.setdefault(symbol, 0.0)
+
+            if order.get('side') == 'buy':
+                basis_by_symbol[symbol] += quantity * price
+                qty_by_symbol[symbol] += quantity
+            elif order.get('side') == 'sell':
+                # Reduce remaining basis by the average cost of sold units
+                existing_qty = qty_by_symbol.get(symbol, 0.0)
+                if existing_qty <= 0:
+                    continue
+
+                avg_cost = basis_by_symbol[symbol] / existing_qty
+                sold_qty = min(quantity, existing_qty)
+                basis_by_symbol[symbol] -= avg_cost * sold_qty
+                qty_by_symbol[symbol] -= sold_qty
+
+        return sum(max(cost, 0.0) for cost in basis_by_symbol.values())
     
     def get_account_balance(self) -> float:
         """
