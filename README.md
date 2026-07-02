@@ -40,7 +40,7 @@ robinhood_crypto_dashboard/
 ```
 
 ## Setup
-1. Clone the repository and change into the project directory (if you haven't already):
+1. Clone the repository and change into the project directory:
 
 ```bash
 git clone https://github.com/<username>/robinhood_crypto_dashboard.git
@@ -48,7 +48,6 @@ cd robinhood_crypto_dashboard
 ```
 
 2. Create and activate a virtual environment:
-(So project dependencies don't conflict with other Python projects on your machine)
 
 ```bash
 python -m venv .venv
